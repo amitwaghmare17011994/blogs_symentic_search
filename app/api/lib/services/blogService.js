@@ -1,5 +1,6 @@
+import { generateEmbedding, initializeEmbeddingModel } from '../utils/embeddings.js'
+
 import { chunkBlog } from '../utils/chunking.js'
-import { generateEmbedding } from '../utils/embeddings.js'
 import { normalizeText } from '../utils/textNormalizer.js'
 import { pool } from '../db/connection.js'
 
@@ -76,6 +77,147 @@ export async function createBlog(title, content) {
     // Rollback on error
     await pool.query('ROLLBACK')
     console.error('Error creating blog:', error)
+    throw error
+  }
+}
+
+/**
+ * Create multiple blog posts in batch with chunked embeddings
+ * @param {Array<{title: string, content: string}>} blogs - Array of blog objects
+ * @returns {Promise<Array<Object>>} Array of created blog objects
+ */
+export async function createBlogsBatch(blogs) {
+  if (!Array.isArray(blogs) || blogs.length === 0) {
+    throw new Error('Blogs array is required and must not be empty')
+  }
+
+  // Validate all blogs
+  for (const blog of blogs) {
+    if (!blog.title || !blog.content) {
+      throw new Error('All blogs must have title and content')
+    }
+  }
+
+  try {
+    // Start transaction
+    await pool.query('BEGIN')
+
+    // Normalize all blogs
+    const normalizedBlogs = blogs.map(blog => ({
+      title: normalizeText(blog.title),
+      content: normalizeText(blog.content),
+      original: blog,
+    }))
+
+    // Validate normalized blogs
+    for (const blog of normalizedBlogs) {
+      if (blog.title.length === 0 || blog.content.length === 0) {
+        throw new Error('Title and content cannot be empty after normalization')
+      }
+    }
+
+    // Batch insert all blogs
+    const blogInsertQuery = `
+      INSERT INTO blogs (title, content)
+      VALUES ${normalizedBlogs.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(', ')}
+      RETURNING id, title, content, created_at, updated_at
+    `
+
+    const blogParams = normalizedBlogs.flatMap(blog => [blog.title, blog.content])
+    const blogResult = await pool.query(blogInsertQuery, blogParams)
+
+    const createdBlogs = blogResult.rows
+    console.log(`📝 Inserted ${createdBlogs.length} blogs in batch`)
+
+    // Process chunks and embeddings for all blogs
+    const allChunks = []
+    
+    for (let i = 0; i < createdBlogs.length; i++) {
+      const blog = createdBlogs[i]
+      const normalizedBlog = normalizedBlogs[i]
+      
+      // Chunk the blog content
+      const chunks = chunkBlog(normalizedBlog.title, normalizedBlog.content, 500, 100)
+      
+      // Add blog_id to each chunk
+      for (const chunk of chunks) {
+        allChunks.push({
+          blogId: blog.id,
+          ...chunk,
+        })
+      }
+    }
+
+    console.log(`📦 Created ${allChunks.length} total chunks for ${createdBlogs.length} blogs`)
+
+    // Initialize embedding model before processing (if not already initialized)
+    console.log('🔄 Initializing embedding model...')
+    await initializeEmbeddingModel()
+    console.log('✅ Embedding model ready')
+
+    // Generate embeddings with concurrency limit to avoid "too many open files" error
+    const embeddingConcurrency = 10 // Process 10 embeddings at a time
+    const chunkEmbeddings = []
+    
+    for (let i = 0; i < allChunks.length; i += embeddingConcurrency) {
+      const batch = allChunks.slice(i, i + embeddingConcurrency)
+      const batchNumber = Math.floor(i / embeddingConcurrency) + 1
+      const totalBatches = Math.ceil(allChunks.length / embeddingConcurrency)
+      
+      console.log(`  🔄 Generating embeddings: batch ${batchNumber}/${totalBatches} (${batch.length} chunks)...`)
+      
+      const batchResults = await Promise.all(
+        batch.map(async (chunk) => {
+          try {
+            const embedding = await generateEmbedding(chunk.text)
+            return {
+              ...chunk,
+              embedding: JSON.stringify(embedding),
+            }
+          } catch (error) {
+            console.error(`Error generating embedding for chunk ${chunk.chunkIndex} of blog ${chunk.blogId}:`, error)
+            return null
+          }
+        })
+      )
+      
+      chunkEmbeddings.push(...batchResults)
+    }
+
+    // Filter out failed embeddings
+    const validChunks = chunkEmbeddings.filter(chunk => chunk !== null)
+
+    // Batch insert all chunks
+    if (validChunks.length > 0) {
+      const chunkInsertQuery = `
+        INSERT INTO blog_chunks (blog_id, chunk_text, chunk_index, start_index, end_index, embedding)
+        VALUES ${validChunks.map((_, i) => 
+          `($${i * 6 + 1}, $${i * 6 + 2}, $${i * 6 + 3}, $${i * 6 + 4}, $${i * 6 + 5}, $${i * 6 + 6}::vector)`
+        ).join(', ')}
+      `
+
+      const chunkParams = validChunks.flatMap(chunk => [
+        chunk.blogId,
+        chunk.text,
+        chunk.chunkIndex,
+        chunk.startIndex,
+        chunk.endIndex,
+        chunk.embedding,
+      ])
+
+      await pool.query(chunkInsertQuery, chunkParams)
+      console.log(`✅ Inserted ${validChunks.length} chunks in batch`)
+    }
+
+    // Commit transaction
+    await pool.query('COMMIT')
+
+    console.log(`✅ Batch created: ${createdBlogs.length} blogs with ${validChunks.length} chunks`)
+    return createdBlogs
+  } catch (error) {
+    // Rollback on error
+    await pool.query('ROLLBACK')
+    console.error('Error creating blogs batch:', error)
     throw error
   }
 }

@@ -1,6 +1,6 @@
 import { dirname, resolve } from 'node:path'
 
-import { createBlog } from '../services/blogService.js'
+import { createBlogsBatch } from '../services/blogService.js'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'node:url'
 import { pool } from '../db/connection.js'
@@ -155,8 +155,10 @@ async function testConnection() {
 
 /**
  * Seed the database with sample blogs
+ * @param {number} batchSize - Number of records to insert in each batch (default: 20)
+ * @param {number} numberOfBatches - Number of batches to process (default: 1)
  */
-async function seedDatabase() {
+async function seedDatabase(batchSize = 20, numberOfBatches = 1) {
   try {
     // Test database connection
     await testConnection()
@@ -168,60 +170,60 @@ async function seedDatabase() {
     // await clearDatabase()
     
     // Get current blog count to determine offset
-    const currentCount = await getBlogCount()
+    let currentCount = await getBlogCount()
     console.log(`\n📊 Current blogs in database: ${currentCount}`)
     
-    // Load next 20 records starting from current count
-    const sampleBlogs = loadBlogData(currentCount, 100)
-    
-    if (sampleBlogs.length === 0) {
-      console.log('⚠️  No more records to seed. All records from JSON file have been processed.')
-      return
-    }
-    
-    console.log('\n🌱 Starting database seeding...')
-    console.log(`📝 Seeding ${sampleBlogs.length} blog posts in batches of 10...`)
+    const totalStartTime = Date.now()
+    let totalCreated = 0
+    let totalErrors = 0
 
-    const batchSize = 20
-    const totalBatches = Math.ceil(sampleBlogs.length / batchSize)
-    let successCount = 0
-    let errorCount = 0
-
-    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-      const startIndex = batchIndex * batchSize
-      const endIndex = Math.min(startIndex + batchSize, sampleBlogs.length)
-      const batch = sampleBlogs.slice(startIndex, endIndex)
+    for (let batchNumber = 1; batchNumber <= numberOfBatches; batchNumber++) {
+      console.log(`\n${'='.repeat(60)}`)
+      console.log(`📦 Processing Batch ${batchNumber}/${numberOfBatches}`)
+      console.log(`${'='.repeat(60)}`)
       
-      console.log(`\n📦 Processing batch ${batchIndex + 1}/${totalBatches} (blogs ${startIndex + 1}-${endIndex})...`)
-
-      // Process batch in parallel
-      const batchPromises = batch.map(async (blog, index) => {
-        const blogNumber = startIndex + index + 1
-        try {
-          const createdBlog = await createBlog(blog.title, blog.content)
-          console.log(`  ✅ [${blogNumber}/${sampleBlogs.length}] Created blog ID: ${createdBlog.id} - "${blog.title.substring(0, 50)}..."`)
-          return { success: true, blogId: createdBlog.id }
-        } catch (error) {
-          console.error(`  ❌ [${blogNumber}/${sampleBlogs.length}] Error creating blog "${blog.title}":`, error.message)
-          return { success: false, error: error.message }
-        }
-      })
-
-      const batchResults = await Promise.all(batchPromises)
+      // Load next batch of records starting from current count
+      const sampleBlogs = loadBlogData(currentCount, batchSize)
       
-      // Count successes and errors
-      batchResults.forEach(result => {
-        if (result.success) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      })
+      if (sampleBlogs.length === 0) {
+        console.log('⚠️  No more records to seed. All records from JSON file have been processed.')
+        break
+      }
+      
+      console.log(`\n🌱 Starting batch seeding...`)
+      console.log(`📝 Seeding ${sampleBlogs.length} blog posts in a single batch insert...`)
 
-      console.log(`  📊 Batch ${batchIndex + 1} completed: ${batchResults.filter(r => r.success).length} succeeded, ${batchResults.filter(r => !r.success).length} failed`)
+      try {
+        const startTime = Date.now()
+        const createdBlogs = await createBlogsBatch(sampleBlogs)
+        const endTime = Date.now()
+        const duration = ((endTime - startTime) / 1000).toFixed(2)
+
+        console.log(`\n✅ Batch ${batchNumber} completed: Created ${createdBlogs.length} blogs in ${duration} seconds`)
+        console.log(`📊 Created blog IDs: ${createdBlogs.map(b => b.id).join(', ')}`)
+        
+        totalCreated += createdBlogs.length
+        currentCount += createdBlogs.length
+      } catch (error) {
+        console.error(`\n❌ Error creating batch ${batchNumber}:`, error.message)
+        totalErrors++
+        // Continue with next batch even if one fails
+        if (batchNumber < numberOfBatches) {
+          console.log('⚠️  Continuing with next batch...')
+        }
+      }
     }
 
-    console.log(`\n📊 Seeding Summary: ${successCount} succeeded, ${errorCount} failed out of ${sampleBlogs.length} total`)
+    const totalEndTime = Date.now()
+    const totalDuration = ((totalEndTime - totalStartTime) / 1000).toFixed(2)
+
+    console.log(`\n${'='.repeat(60)}`)
+    console.log(`📊 Seeding Summary:`)
+    console.log(`   ✅ Total created: ${totalCreated} blogs`)
+    console.log(`   ❌ Total errors: ${totalErrors} batches`)
+    console.log(`   ⏱️  Total time: ${totalDuration} seconds`)
+    console.log(`   📈 Average: ${totalCreated > 0 ? (totalDuration / totalCreated).toFixed(2) : 0} seconds per blog`)
+    console.log(`${'='.repeat(60)}`)
 
     console.log('\n🎉 Database seeding completed!')
   } catch (error) {
@@ -234,9 +236,22 @@ async function seedDatabase() {
   }
 }
 
+// Get command line arguments for batch size and number of batches
+const args = process.argv.slice(2)
+const batchSizeArg = args.find(arg => arg.startsWith('--batch-size='))
+const batchesArg = args.find(arg => arg.startsWith('--batches='))
+
+const batchSize = batchSizeArg ? Number.parseInt(batchSizeArg.split('=')[1], 10) : 20
+const numberOfBatches = batchesArg ? Number.parseInt(batchesArg.split('=')[1], 10) : 1
+
+console.log(`\n🚀 Starting seeder with:`)
+console.log(`   📦 Batch size: ${batchSize} records per batch`)
+console.log(`   🔄 Number of batches: ${numberOfBatches}`)
+console.log(`   📊 Total records to process: ${batchSize * numberOfBatches}`)
+
 // Run the seeder
 try {
-  await seedDatabase()
+  await seedDatabase(batchSize, numberOfBatches)
   console.log('✅ Seeder script finished successfully')
   process.exit(0)
 } catch (error) {

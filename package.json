@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "generate-blog-data": "node app/api/lib/scripts/generateBlogData.js",
-    "seed": "node app/api/lib/scripts/seedSampleData.js"
+    "seed": "node app/api/lib/scripts/seedSampleData.js",
+    "seed:batch": "node app/api/lib/scripts/seedSampleData.js --batch-size=25 --batches=10",
+    "delete-duplicates": "node app/api/lib/scripts/deleteDuplicateBlogs.js",
+    "delete-duplicates:dry-run": "node app/api/lib/scripts/deleteDuplicateBlogs.js --dry-run"
   },
   "dependencies": {
     "next": "^14.0.4",
