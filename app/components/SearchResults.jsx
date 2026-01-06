@@ -20,7 +20,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
             Searching...
           </p>
         </div>
-        <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+        <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto">
           <BlogCardSkeletons count={5} isTopMatch={true} />
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
         </p>
       </div>
 
-      <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+      <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto">
         {sortedResults.map((blog, index) => {
           const isExpanded = expandedBlogs.has(blog.id)
           const showPreview = blog.content && blog.content.length > 200

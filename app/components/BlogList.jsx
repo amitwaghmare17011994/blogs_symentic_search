@@ -64,13 +64,12 @@ export default function BlogList() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="mb-6">
+        <div className="mb-6 hidden lg:block">
           <h2 className="text-2xl font-semibold text-gray-800 mb-2">
             All Blogs
           </h2>
-          <p className="text-sm text-gray-500">Loading...</p>
         </div>
-        <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+        <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto">
           <BlogCardSkeletons count={6} />
         </div>
       </div>
@@ -95,16 +94,16 @@ export default function BlogList() {
 
   return (
     <div className="space-y-4">
-      {/* <div className="mb-6">
+      <div className="mb-6 hidden lg:block">
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">
           All Blogs
         </h2>
         <p className="text-sm text-gray-500">
           Total: <span className="font-semibold text-gray-700">{totalCount}</span> {totalCount === 1 ? 'blog' : 'blogs'}
         </p>
-      </div> */}
+      </div>
 
-      <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+      <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto">
         {blogs.map((blog) => {
           const isExpanded = expandedBlogs.has(blog.id)
           const showPreview = blog.content && blog.content.length > 150

@@ -33,14 +33,15 @@ export default function Home() {
   // Get panel transform and height based on state
   const getPanelStyle = () => {
     const maxHeight = window.innerHeight
-    const topMargin = maxHeight * 0.1 // 20% of screen height
+    const topMargin = maxHeight * 0.1 // 10% of screen height
     
     if (isBlogsExpanded) {
       return {
         height: `calc(100vh - ${topMargin}px)`,
         marginTop: `${topMargin}px`,
         transform: `translateY(${topMargin}px)`,
-        transition: 'transform 300ms ease-out, height 300ms ease-out'
+        opacity: 1,
+        transition: 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), height 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out'
       }
     }
     
@@ -48,7 +49,25 @@ export default function Home() {
       height: '0px',
       marginTop: '0px',
       transform: `translateY(${maxHeight}px)`,
-      transition: 'transform 300ms ease-out, height 300ms ease-out'
+      opacity: 0,
+      transition: 'transform 350ms cubic-bezier(0.4, 0, 0.2, 1), height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease-in'
+    }
+  }
+
+  // Get backdrop style with animation
+  const getBackdropStyle = () => {
+    if (isBlogsExpanded) {
+      return {
+        opacity: 0.5,
+        pointerEvents: 'auto',
+        transition: 'opacity 300ms ease-in'
+      }
+    }
+    
+    return {
+      opacity: 0,
+      pointerEvents: 'none',
+      transition: 'opacity 200ms ease-out'
     }
   }
 
@@ -122,19 +141,21 @@ export default function Home() {
       </div>
 
       {/* Mobile Full Screen Overlay - All Blogs */}
-      {isBlogsExpanded && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="lg:hidden fixed inset-0 bg-black z-50 transition-opacity opacity-50"
-            onClick={() => setIsBlogsExpanded(false)}
-          />
-          
-          {/* Full Screen Panel */}
-          <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 bg-white z-50 flex flex-col rounded-t-2xl shadow-2xl mt-4"
-            style={getPanelStyle()}
-          >
+      {/* Backdrop */}
+      <div
+        className="lg:hidden fixed inset-0 bg-black z-50"
+        style={getBackdropStyle()}
+        onClick={() => setIsBlogsExpanded(false)}
+      />
+      
+      {/* Full Screen Panel */}
+      <div
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white z-50 flex flex-col rounded-t-2xl shadow-2xl mt-4"
+        style={{
+          ...getPanelStyle(),
+          pointerEvents: isBlogsExpanded ? 'auto' : 'none'
+        }}
+      >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
               <h2 className="text-xl font-semibold text-gray-900">All Blogs</h2>
@@ -161,8 +182,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </>
-      )}
     </div>
   )
 }
