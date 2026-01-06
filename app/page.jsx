@@ -15,8 +15,7 @@ export default function Home() {
   const [isBlogsExpanded, setIsBlogsExpanded] = useState(false)
   const [windowHeight, setWindowHeight] = useState(0)
 
-  // Set window height on client side only
-  useEffect(() => {
+   useEffect(() => {
     if (globalThis.window !== undefined) {
       setWindowHeight(globalThis.window.innerHeight)
       
