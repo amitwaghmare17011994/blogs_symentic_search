@@ -1,10 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 import BlogList from './components/BlogList'
 import SearchBar from './components/SearchBar'
 import SearchResults from './components/SearchResults'
 import { searchBlogs } from './lib/api'
-import { useState } from 'react'
 
 export default function Home() {
   const [results, setResults] = useState([])
@@ -12,6 +13,21 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isBlogsExpanded, setIsBlogsExpanded] = useState(false)
+  const [windowHeight, setWindowHeight] = useState(0)
+
+  // Set window height on client side only
+  useEffect(() => {
+    if (globalThis.window !== undefined) {
+      setWindowHeight(globalThis.window.innerHeight)
+      
+      const handleResize = () => {
+        setWindowHeight(globalThis.window.innerHeight)
+      }
+      
+      globalThis.window.addEventListener('resize', handleResize)
+      return () => globalThis.window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   const handleSearch = async (searchQuery) => {
     setQuery(searchQuery)
@@ -32,7 +48,8 @@ export default function Home() {
 
   // Get panel transform and height based on state
   const getPanelStyle = () => {
-    const maxHeight = window.innerHeight
+    // Use windowHeight state or fallback to 100vh if not yet set (SSR)
+    const maxHeight = windowHeight || (globalThis.window !== undefined ? globalThis.window.innerHeight : 1000)
     const topMargin = maxHeight * 0.1 // 10% of screen height
     
     if (isBlogsExpanded) {
