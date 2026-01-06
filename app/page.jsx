@@ -1,11 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
-
 import BlogList from './components/BlogList'
 import SearchBar from './components/SearchBar'
 import SearchResults from './components/SearchResults'
 import { searchBlogs } from './lib/api'
+import { useState } from 'react'
 
 export default function Home() {
   const [results, setResults] = useState([])
@@ -13,10 +12,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isBlogsExpanded, setIsBlogsExpanded] = useState(false)
-  const [dragHeight, setDragHeight] = useState(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const startYRef = useRef(0)
-  const startHeightRef = useRef(0)
 
   const handleSearch = async (searchQuery) => {
     setQuery(searchQuery)
@@ -35,73 +30,23 @@ export default function Home() {
     }
   }
 
-  // Touch handlers for swipe-up gesture
-  const handleTouchStart = (e) => {
-    setIsDragging(true)
-    startYRef.current = e.touches[0].clientY
-    startHeightRef.current = isBlogsExpanded ? window.innerHeight : 0
-    e.preventDefault()
-  }
-
-  const handleTouchMove = (e) => {
-    if (!isDragging) return
-    
-    const currentY = e.touches[0].clientY
-    const deltaY = startYRef.current - currentY // Positive when swiping up
-    const maxHeight = window.innerHeight
-    
-    // Calculate new height: swiping up increases height
-    const newHeight = Math.max(0, Math.min(maxHeight, startHeightRef.current + deltaY))
-    setDragHeight(newHeight)
-    
-    // Show panel if dragging up
-    if (newHeight > 50) {
-      setIsBlogsExpanded(true)
-    }
-    
-    e.preventDefault()
-  }
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return
-    
-    setIsDragging(false)
-    const maxHeight = window.innerHeight
-    const threshold = maxHeight * 0.3 // 30% threshold
-    
-    // Snap to fully expanded or collapsed based on drag distance
-    if (dragHeight && dragHeight >= threshold) {
-      setIsBlogsExpanded(true)
-      setDragHeight(null)
-    } else {
-      setIsBlogsExpanded(false)
-      setDragHeight(null)
-    }
-  }
-
-  // Get panel transform and height based on drag or state
+  // Get panel transform and height based on state
   const getPanelStyle = () => {
     const maxHeight = window.innerHeight
-    
-    if (isDragging && dragHeight !== null) {
-      const height = Math.max(0, Math.min(maxHeight, dragHeight))
-      return {
-        height: `${height}px`,
-        transform: `translateY(${maxHeight - height}px)`,
-        transition: 'none'
-      }
-    }
+    const topMargin = maxHeight * 0.1 // 20% of screen height
     
     if (isBlogsExpanded) {
       return {
-        height: '100vh',
-        transform: 'translateY(0)',
+        height: `calc(100vh - ${topMargin}px)`,
+        marginTop: `${topMargin}px`,
+        transform: `translateY(${topMargin}px)`,
         transition: 'transform 300ms ease-out, height 300ms ease-out'
       }
     }
     
     return {
       height: '0px',
+      marginTop: '0px',
       transform: `translateY(${maxHeight}px)`,
       transition: 'transform 300ms ease-out, height 300ms ease-out'
     }
@@ -153,23 +98,16 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Mobile Bottom Button - All Blogs (Draggable) */}
-      <div
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
-      >
+      {/* Mobile Bottom Button - All Blogs */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40">
         <button
           onClick={() => setIsBlogsExpanded(true)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 shadow-lg transition-colors touch-none"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 shadow-lg transition-colors"
         >
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">All Blogs</h2>
-              <p className="text-sm opacity-90">
-                {isDragging ? 'Drag up to expand' : 'Swipe up or tap to view'}
-              </p>
+              <p className="text-sm opacity-90">Tap to view all blogs</p>
             </div>
             <svg
               className="w-6 h-6"
@@ -184,67 +122,36 @@ export default function Home() {
       </div>
 
       {/* Mobile Full Screen Overlay - All Blogs */}
-      {(isBlogsExpanded || (isDragging && dragHeight && dragHeight > 0)) && (
+      {isBlogsExpanded && (
         <>
           {/* Backdrop */}
           <div
-            className="lg:hidden fixed inset-0 bg-black z-50 transition-opacity"
-            style={{
-              opacity: isDragging && dragHeight 
-                ? Math.min(0.5, (dragHeight / window.innerHeight) * 0.5)
-                : isBlogsExpanded 
-                  ? 0.5 
-                  : 0,
-              pointerEvents: isBlogsExpanded && !isDragging ? 'auto' : 'none'
-            }}
-            onClick={() => {
-              if (!isDragging) {
-                setIsBlogsExpanded(false)
-                setDragHeight(null)
-              }
-            }}
+            className="lg:hidden fixed inset-0 bg-black z-50 transition-opacity opacity-50"
+            onClick={() => setIsBlogsExpanded(false)}
           />
           
           {/* Full Screen Panel */}
           <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 bg-white z-50 flex flex-col rounded-t-2xl shadow-2xl"
+            className="lg:hidden fixed bottom-0 left-0 right-0 bg-white z-50 flex flex-col rounded-t-2xl shadow-2xl mt-4"
             style={getPanelStyle()}
           >
-            {/* Header with Drag Handle */}
-            <div
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              className="flex items-center justify-between p-4 border-b border-gray-200 bg-white cursor-grab active:cursor-grabbing"
-            >
-              <div className="flex items-center gap-3 flex-1">
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-gray-900">All Blogs</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">View all blog posts</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsBlogsExpanded(false)
-                    setDragHeight(null)
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  aria-label="Close"
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+              <h2 className="text-xl font-semibold text-gray-900">All Blogs</h2>
+              <button
+                onClick={() => setIsBlogsExpanded(false)}
+                className="p-2 hover:bg-gray-100 active:bg-gray-200 rounded-full transition-colors flex-shrink-0"
+                aria-label="Close"
+              >
+                <svg
+                  className="w-6 h-6 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="w-6 h-6 text-gray-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            {/* Drag Handle Indicator */}
-            <div className="flex justify-center pt-2 pb-1">
-              <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             
             {/* Content */}

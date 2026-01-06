@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getAllBlogs } from '../lib/api'
+
 import { BlogCardSkeletons } from './BlogCardSkeleton'
+import { getAllBlogs } from '../lib/api'
 
 /**
  * BlogList component to display all blogs
@@ -94,14 +95,14 @@ export default function BlogList() {
 
   return (
     <div className="space-y-4">
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">
           All Blogs
         </h2>
         <p className="text-sm text-gray-500">
           Total: <span className="font-semibold text-gray-700">{totalCount}</span> {totalCount === 1 ? 'blog' : 'blogs'}
         </p>
-      </div>
+      </div> */}
 
       <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
         {blogs.map((blog) => {
