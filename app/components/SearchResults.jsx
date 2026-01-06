@@ -81,7 +81,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
     : null
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-4 overflow-x-hidden">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">
           Search Results
@@ -91,7 +91,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
         </p>
       </div>
 
-      <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto">
+      <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-hidden">
         {sortedResults.map((blog, index) => {
           const isExpanded = expandedBlogs.has(blog.id)
           const showPreview = blog.content && blog.content.length > 200
@@ -100,7 +100,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
           return (
             <div
               key={blog.id}
-              className={`rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 ${
+              className={`rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden ${
                 isTopMatch
                   ? 'bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 border-2 border-purple-300 p-6 transform scale-[1.02]'
                   : 'bg-gray-50 border border-gray-200 p-5'
@@ -119,14 +119,14 @@ export default function SearchResults({ results, query, isLoading = false }) {
                 </div>
               )}
               
-              <div className={`flex justify-between items-start ${isTopMatch ? 'mb-4' : 'mb-3'}`}>
-                <h3 className={`font-semibold text-gray-900 flex-1 ${
+              <div className={`flex justify-between items-start gap-2 ${isTopMatch ? 'mb-4' : 'mb-3'}`}>
+                <h3 className={`font-semibold text-gray-900 flex-1 break-words min-w-0 ${
                   isTopMatch ? 'text-2xl' : 'text-lg'
                 }`}>
                   {blog.title}
                 </h3>
                 {!isTopMatch && blog.similarity !== undefined && (
-                  <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium whitespace-nowrap">
+                  <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">
                     {formatSimilarity(blog.similarity)}% match
                   </span>
                 )}
@@ -144,7 +144,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
                   }`}>
                     📍 Matched Section:
                   </p>
-                  <p className={`text-gray-800 leading-relaxed ${
+                  <p className={`text-gray-800 leading-relaxed break-words overflow-wrap-anywhere ${
                     isTopMatch ? 'text-sm' : 'text-xs'
                   }`}>
                     {blog.matchedChunk}
@@ -152,7 +152,7 @@ export default function SearchResults({ results, query, isLoading = false }) {
                 </div>
               )}
               
-              <p className={`text-gray-700 leading-relaxed mb-2 ${
+              <p className={`text-gray-700 leading-relaxed mb-2 break-words overflow-wrap-anywhere ${
                 isTopMatch ? 'text-base' : 'text-sm'
               }`}>
                 {isExpanded || !showPreview ? blog.content : getPreview(blog.content)}

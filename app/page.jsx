@@ -105,8 +105,8 @@ export default function Home() {
       {/* Main Content - Responsive Layout */}
       <main className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
         {/* Left Panel - Search */}
-        <div className="w-full lg:w-1/2 border-r-0 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white overflow-y-auto">
-          <div className="p-4 sm:p-6">
+        <div className="w-full lg:w-1/2 border-r-0 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white overflow-y-auto overflow-x-hidden">
+          <div className="p-4 sm:p-6 overflow-x-hidden">
             {/* Search Bar */}
             <div className="mb-6">
               <SearchBar onSearch={handleSearch} isLoading={isLoading} />
